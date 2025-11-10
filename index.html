@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>即時互動數位白板</title>
+    <title>即時互動數位白板V2.9</title>
     
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -171,7 +171,7 @@
                     ❓ 需要幫助？點此查看 Firebase 設定說明
                 </button>
                 <div class="text-gray-500 text-sm">
-                    Made with ❤️ by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 font-semibold underline">阿剛老師</a>
+                    Made with ❤️ by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 font-semibold underline">阿剛老師 V2.9</a>
                 </div>
             </div>
         </div>
@@ -268,7 +268,7 @@
 
         <!-- Session Info Container -->
         <div class="absolute top-4 left-4 flex space-x-2 z-10">
-            <div id="session-info" class="bg-white bg-opacity-80 backdrop-blur-sm px-4 py-2 rounded-lg shadow-md">
+            <div id="session-info" class="bg-white bg-opacity-80 backdrop-blur-sm px-4 py-2 rounded-lg shadow-md cursor-pointer hover:bg-opacity-100 hover:shadow-lg transition-all" title="點擊切換白板（僅限教師）">
                 白板ID: <span id="session-id-display" class="font-bold text-blue-600"></span>
             </div>
              <div id="student-name-display-container" class="hidden bg-white bg-opacity-80 backdrop-blur-sm px-4 py-2 rounded-lg shadow-md">
@@ -405,9 +405,22 @@ service cloud.firestore {
             </div>
         </div>
     </div>
-    
+
+    <!-- Switch Canvas Modal -->
+    <div id="switch-canvas-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col max-h-[70vh]">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold">切換白板</h2>
+                <button id="close-switch-canvas-modal" class="text-gray-500 hover:text-gray-800 text-3xl font-bold leading-none">&times;</button>
+            </div>
+            <div id="canvas-list-container" class="p-4 flex-grow overflow-y-auto space-y-2">
+                <!-- Canvas list will be rendered here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Message Overlay -->
-    <div id="message-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-60 p-4">
+    <div id="message-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4" style="z-index: 9998;">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-sm text-center p-6 space-y-4">
             <p id="message-text" class="text-lg text-gray-800"></p>
             <button id="message-ok-btn" class="bg-blue-600 text-white px-8 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">確定</button>
@@ -415,7 +428,7 @@ service cloud.firestore {
     </div>
 
     <!-- Confirm Overlay -->
-    <div id="confirm-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-60 p-4">
+    <div id="confirm-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4" style="z-index: 9999;">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md text-center p-6 space-y-4">
             <div class="flex justify-center mb-4">
                 <svg class="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -531,6 +544,7 @@ service cloud.firestore {
         let initialTouchCount = 0; // Track initial touch count
         let remoteUpdateGuard = false; // Prevent feedback loops
         const fabricObjects = new Map(); // Maps Firestore docId to Fabric object
+        const pageViewStates = new Map(); // Maps page number to {zoom, viewportTransform}
 
         // Inactivity timer for students (30 minutes)
         let inactivityTimer = null;
@@ -540,15 +554,10 @@ service cloud.firestore {
         // ▼▼▼ 請在此處貼上您的 Firebase 設定碼 ▼▼▼
         const firebaseConfig = {
   apiKey: "AIzaSyD2XtmMqvkC5r9zkAfmTT5x1UXEouLuHCc",
-
   authDomain: "jamboard-d635a.firebaseapp.com",
-
   projectId: "jamboard-d635a",
-
   storageBucket: "jamboard-d635a.firebasestorage.app",
-
   messagingSenderId: "769699828835",
-
   appId: "1:769699828835:web:eac4373fbaed961741d456"
         };
         // ▲▲▲ 請在此處貼上您的 Firebase 設定碼 ▲▲▲
@@ -572,6 +581,27 @@ service cloud.firestore {
                     if (user) {
                         // User is signed in anonymously.
                         console.log("Anonymous user signed in:", user.uid);
+
+                        // Check if there's an auto-switch state in sessionStorage
+                        const autoSwitchData = sessionStorage.getItem('autoSwitchCanvas');
+                        if (autoSwitchData) {
+                            try {
+                                const switchInfo = JSON.parse(autoSwitchData);
+                                console.log('[AutoSwitch] Found auto-switch data:', switchInfo);
+
+                                // Clear the flag immediately to prevent loops
+                                sessionStorage.removeItem('autoSwitchCanvas');
+
+                                // Auto-enter the whiteboard after a short delay to ensure Firebase is ready
+                                setTimeout(() => {
+                                    console.log('[AutoSwitch] Auto-entering whiteboard:', switchInfo.sessionId);
+                                    enterWhiteboard(switchInfo.sessionId, switchInfo.role, switchInfo.name);
+                                }, 500);
+                            } catch (error) {
+                                console.error('[AutoSwitch] Error parsing auto-switch data:', error);
+                                sessionStorage.removeItem('autoSwitchCanvas');
+                            }
+                        }
                     } else {
                         // User is signed out.
                         signInAnonymously(auth).catch(error => {
@@ -808,6 +838,16 @@ service cloud.firestore {
             setupModal.classList.add('hidden');
         });
 
+        // Event listener for clicking on session ID to switch canvas
+        document.getElementById('session-info').addEventListener('click', () => {
+            showCanvasSwitchModal();
+        });
+
+        // Event listener for closing the switch canvas modal
+        document.getElementById('close-switch-canvas-modal').addEventListener('click', () => {
+            document.getElementById('switch-canvas-modal').classList.add('hidden');
+        });
+
         async function enterWhiteboard(id, role, name) {
             sessionId = id;
             userRole = role;
@@ -841,6 +881,139 @@ service cloud.firestore {
             
             initWhiteboard();
             listenToSessionChanges();
+        }
+
+        // Fetch all available (non-deleted) canvases
+        async function fetchAvailableCanvases() {
+            try {
+                const sessionsQuery = query(collection(db, "sessions"));
+                const sessionsSnapshot = await getDocs(sessionsQuery);
+
+                const canvases = [];
+                sessionsSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    // Only include canvases that are not marked as deleted
+                    // If there's no metadata.deleted field, we consider it as not deleted
+                    const isDeleted = data.metadata && data.metadata.deleted === true;
+                    if (!isDeleted) {
+                        canvases.push({
+                            id: doc.id,
+                            data: data
+                        });
+                    }
+                });
+
+                return canvases;
+            } catch (error) {
+                console.error("Error fetching available canvases:", error);
+                showMessage("載入白板列表時發生錯誤");
+                return [];
+            }
+        }
+
+        // Switch to a different canvas
+        async function switchToCanvas(newSessionId) {
+            if (newSessionId === sessionId) {
+                showMessage("您已經在這個白板中了");
+                return;
+            }
+
+            try {
+                // Check if the target session exists and if it has an owner
+                const sessionRef = doc(db, "sessions", newSessionId);
+                const sessionSnap = await getDoc(sessionRef);
+
+                if (sessionSnap.exists()) {
+                    const sessionData = sessionSnap.data();
+                    const currentOwnerUid = sessionData.metadata?.ownerUid;
+
+                    // If the session has an owner and it's not the current user, ask for confirmation
+                    if (currentOwnerUid && currentOwnerUid !== auth.currentUser.uid) {
+                        const takeOver = await showConfirm(
+                            '白板已存在',
+                            `白板ID "${newSessionId}" 已被使用。您是否要取代目前的老師並接管這個白板？`
+                        );
+
+                        if (!takeOver) {
+                            // User cancelled, don't switch
+                            return;
+                        }
+
+                        // User confirmed, update the owner
+                        await updateDoc(sessionRef, { "metadata.ownerUid": auth.currentUser.uid });
+                    }
+                }
+
+                // Save switch state to sessionStorage for auto-login after reload
+                sessionStorage.setItem('autoSwitchCanvas', JSON.stringify({
+                    sessionId: newSessionId,
+                    role: userRole,
+                    name: userRole === 'teacher' ? '老師' : '學生'
+                }));
+
+                console.log(`[switchToCanvas] Saved state and reloading page to switch to: ${newSessionId}`);
+
+                // Reload the page - this ensures complete re-initialization
+                window.location.reload();
+            } catch (error) {
+                console.error("Error switching canvas:", error);
+                showMessage("切換白板時發生錯誤");
+            }
+        }
+
+        // Show canvas switch modal
+        async function showCanvasSwitchModal() {
+            // Only allow teachers to switch canvases
+            if (userRole !== 'teacher') {
+                showMessage("只有教師可以切換白板");
+                return;
+            }
+
+            const modal = document.getElementById('switch-canvas-modal');
+            const container = document.getElementById('canvas-list-container');
+
+            // Show loading message
+            container.innerHTML = '<div class="text-center text-gray-500">載入中...</div>';
+            modal.classList.remove('hidden');
+
+            // Fetch available canvases
+            const canvases = await fetchAvailableCanvases();
+
+            // Render canvas list
+            if (canvases.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500">目前沒有可用的白板</div>';
+            } else {
+                container.innerHTML = '';
+                canvases.forEach(canvasData => {
+                    const canvasItem = document.createElement('div');
+                    const isCurrentCanvas = canvasData.id === sessionId;
+
+                    canvasItem.className = `p-3 rounded-lg border-2 transition-all ${
+                        isCurrentCanvas
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50 cursor-pointer'
+                    }`;
+
+                    canvasItem.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="font-bold text-gray-800">${canvasData.id}</div>
+                                ${isCurrentCanvas ? '<div class="text-xs text-blue-600 mt-1">目前白板</div>' : ''}
+                            </div>
+                            ${!isCurrentCanvas ? '<div class="text-blue-600 text-sm">點擊切換</div>' : ''}
+                        </div>
+                    `;
+
+                    if (!isCurrentCanvas) {
+                        canvasItem.addEventListener('click', async () => {
+                            modal.classList.add('hidden');
+                            await switchToCanvas(canvasData.id);
+                        });
+                    }
+
+                    container.appendChild(canvasItem);
+                });
+            }
         }
 
         async function setupParticipant(sessionId, userRole, userName) {
@@ -927,9 +1100,41 @@ service cloud.firestore {
         function switchPage(pageNum) {
             if (pageNum === currentPage) return;
             resetInactivityTimer(); // Reset timer on user activity
+
+            // Save current page's view state before switching
+            if (canvas) {
+                pageViewStates.set(currentPage, {
+                    zoom: canvas.getZoom(),
+                    viewportTransform: canvas.viewportTransform.slice() // Clone the array
+                });
+                console.log(`[switchPage] Saved view state for page ${currentPage}:`, {
+                    zoom: canvas.getZoom(),
+                    vpt: canvas.viewportTransform
+                });
+            }
+
             currentPage = pageNum;
             console.log(`Switched to page ${currentPage}`);
             listenToPageObjects(pageNum);
+
+            // Restore view state for the new page (if it exists)
+            if (canvas && pageViewStates.has(pageNum)) {
+                const savedState = pageViewStates.get(pageNum);
+                canvas.setZoom(savedState.zoom);
+                canvas.setViewportTransform(savedState.viewportTransform);
+                canvas.requestRenderAll();
+
+                // Update zoom UI
+                const zoomSlider = document.getElementById('zoom-slider');
+                const zoomLabel = document.getElementById('zoom-label');
+                if (zoomSlider) zoomSlider.value = savedState.zoom;
+                if (zoomLabel) zoomLabel.textContent = `${Math.round(savedState.zoom * 100)}%`;
+
+                console.log(`[switchPage] Restored view state for page ${pageNum}:`, savedState);
+            } else {
+                console.log(`[switchPage] No saved view state for page ${pageNum}, using default`);
+            }
+
             // Update UI highlighting without re-fetching page count
             const pagesToolbar = document.getElementById('pages-toolbar');
             const buttons = pagesToolbar.querySelectorAll('button');
@@ -953,9 +1158,18 @@ service cloud.firestore {
                 unsubscribePageObjects();
             }
 
+            // Save view state before clearing (canvas.clear() resets viewport)
+            const savedZoom = canvas.getZoom();
+            const savedVPT = canvas.viewportTransform.slice();
+
             // Clear canvas and local object map for the new page
             canvas.clear();
             fabricObjects.clear();
+
+            // Restore view state after clearing
+            canvas.setZoom(savedZoom);
+            canvas.setViewportTransform(savedVPT);
+            canvas.requestRenderAll();
 
             const objectsRef = collection(db, "sessions", sessionId, "canvasObjects");
             const q = query(objectsRef, where("page", "==", pageNum));
@@ -2406,14 +2620,17 @@ service cloud.firestore {
             origX = pointer.x;
             origY = pointer.y;
 
+            const penColorEl = document.getElementById('pen-color');
+            const activeWidthBtn = document.querySelector('.pen-width-btn.active');
+
             const sharedProps = {
                 left: origX,
                 top: origY,
                 originX: 'left',
                 originY: 'top',
                 fill: 'rgba(255, 255, 255, 0)',
-                stroke: document.getElementById('pen-color').value,
-                strokeWidth: parseInt(document.getElementById('pen-width').value, 10) || 3
+                stroke: penColorEl ? penColorEl.value : '#3b82f6',
+                strokeWidth: activeWidthBtn ? parseInt(activeWidthBtn.dataset.width, 10) : 3
             };
             if (activeTool === 'rect') {
                 shape = new fabric.Rect({ ...sharedProps, width: 0, height: 0 });
@@ -2692,34 +2909,40 @@ service cloud.firestore {
 
                 console.log(`[下載PDF] 總共 ${totalPages} 頁`);
 
-                // 保存當前視圖狀態（縮放和平移）
-                const savedZoom = canvas.getZoom();
-                const savedVPT = canvas.viewportTransform.slice();
-                console.log(`[下載PDF] 保存視圖狀態 - Zoom: ${savedZoom.toFixed(2)}, VPT: [${savedVPT.join(', ')}]`);
+                // 警告：如果頁數過多
+                if (totalPages > 20) {
+                    const confirmed = await showConfirm(
+                        '⚠️ 頁數過多警告',
+                        `此白板有 ${totalPages} 頁，生成 PDF 可能需要較長時間且檔案會很大。\n\n建議：如果頁數超過 30 頁，請考慮分批下載。\n\n是否繼續？`
+                    );
+                    if (!confirmed) {
+                        showLoading(false);
+                        return;
+                    }
+                }
 
-                // 計算當前可見區域（基於畫布尺寸和視圖變換）
+                // 硬性限制：超過 50 頁
+                if (totalPages > 50) {
+                    showMessage(`⚠️ 頁數過多 (${totalPages} 頁)\n\n為避免瀏覽器崩潰，單次下載限制為 50 頁。\n請考慮刪除部分頁面後再下載。`);
+                    showLoading(false);
+                    return;
+                }
+
+                // 保存當前頁面的視圖狀態到 pageViewStates（如果還沒保存）
+                if (!pageViewStates.has(currentPage)) {
+                    pageViewStates.set(currentPage, {
+                        zoom: canvas.getZoom(),
+                        viewportTransform: canvas.viewportTransform.slice()
+                    });
+                }
+
+                // 計算畫布尺寸（用於計算可見區域）
                 const canvasWidth = canvas.width;
                 const canvasHeight = canvas.height;
 
-                // 計算視窗中實際看到的畫布區域（考慮縮放和平移）
-                const vpt = savedVPT;
-                const zoom = savedZoom;
-
-                // 視窗左上角在畫布座標系中的位置
-                const viewLeft = -vpt[4] / zoom;
-                const viewTop = -vpt[5] / zoom;
-                const viewWidth = canvasWidth / zoom;
-                const viewHeight = canvasHeight / zoom;
-
-                console.log(`[下載PDF] 可見區域: left=${viewLeft.toFixed(0)}, top=${viewTop.toFixed(0)}, width=${viewWidth.toFixed(0)}, height=${viewHeight.toFixed(0)}`);
-
-                // 初始化jsPDF，使用可見區域尺寸
+                // 初始化jsPDF（暫時使用畫布尺寸，稍後會根據第一頁調整）
                 const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({
-                    orientation: viewWidth > viewHeight ? 'landscape' : 'portrait',
-                    unit: 'px',
-                    format: [viewWidth, viewHeight]
-                });
+                let pdf = null;
 
                 // 移除作者名稱顯示（如果有的話）
                 const originalShowAuthorNames = showAuthorNames;
@@ -2744,23 +2967,48 @@ service cloud.firestore {
                         await new Promise(resolve => setTimeout(resolve, 500));
                     }
 
-                    // 套用保存的視圖狀態
-                    canvas.setViewportTransform(savedVPT);
-                    canvas.setZoom(savedZoom);
+                    // 獲取該頁面的視圖狀態（如果有保存的話，否則使用預設視圖）
+                    let pageZoom, pageVPT;
+                    if (pageViewStates.has(pageNum)) {
+                        const savedState = pageViewStates.get(pageNum);
+                        pageZoom = savedState.zoom;
+                        pageVPT = savedState.viewportTransform.slice();
+                        console.log(`[下載PDF] 使用第 ${pageNum} 頁保存的視圖狀態 - Zoom: ${pageZoom.toFixed(2)}`);
+                    } else {
+                        // 使用默認視圖（zoom 1, 無平移）
+                        pageZoom = 1;
+                        pageVPT = [1, 0, 0, 1, 0, 0];
+                        console.log(`[下載PDF] 第 ${pageNum} 頁無保存的視圖狀態，使用預設視圖`);
+                    }
+
+                    // 套用該頁面的視圖狀態
+                    canvas.setViewportTransform(pageVPT);
+                    canvas.setZoom(pageZoom);
                     canvas.requestRenderAll();
 
                     // 等待渲染完成
                     await new Promise(resolve => setTimeout(resolve, 200));
 
-                    // 擷取當前可見區域的圖片（高解析度，帶降級處理）
+                    console.log(`[下載PDF] 第 ${pageNum} 頁 - 螢幕尺寸: ${canvasWidth} x ${canvasHeight}, Zoom: ${pageZoom.toFixed(2)}`);
+
+                    // 初始化PDF（第一頁時），使用螢幕尺寸
+                    if (pageNum === 1) {
+                        pdf = new jsPDF({
+                            orientation: canvasWidth > canvasHeight ? 'landscape' : 'portrait',
+                            unit: 'px',
+                            format: [canvasWidth, canvasHeight]
+                        });
+                        console.log(`[下載PDF] 初始化PDF，尺寸: ${canvasWidth} x ${canvasHeight} (螢幕尺寸)`);
+                    }
+
+                    // 擷取當前可見區域的圖片（使用較低解析度避免記憶體溢出）
                     let imgData = null;
                     const attempts = [
-                        { multiplier: 2, quality: 1, format: 'png' },      // 最高品質
-                        { multiplier: 1.5, quality: 0.95, format: 'png' }, // 高品質
-                        { multiplier: 1, quality: 0.9, format: 'png' },    // 中品質
-                        { multiplier: 1, quality: 0.85, format: 'jpeg' },  // JPEG 中品質
-                        { multiplier: 0.8, quality: 0.8, format: 'jpeg' }, // JPEG 低品質
-                        { multiplier: 0.5, quality: 0.7, format: 'jpeg' }  // 最低品質
+                        { multiplier: 1, quality: 0.8, format: 'jpeg' },   // JPEG 中品質（預設）
+                        { multiplier: 0.8, quality: 0.75, format: 'jpeg' }, // JPEG 低品質
+                        { multiplier: 0.6, quality: 0.7, format: 'jpeg' },  // 更低品質
+                        { multiplier: 0.5, quality: 0.65, format: 'jpeg' }, // 最低品質
+                        { multiplier: 0.4, quality: 0.6, format: 'jpeg' }   // 超低品質（緊急備用）
                     ];
 
                     for (let i = 0; i < attempts.length; i++) {
@@ -2768,15 +3016,23 @@ service cloud.firestore {
                             const config = attempts[i];
                             console.log(`[下載PDF] 嘗試配置 ${i + 1}/${attempts.length}: multiplier=${config.multiplier}, quality=${config.quality}, format=${config.format}`);
 
+                            // 暫時保存原始背景色
+                            const originalBgColor = canvas.backgroundColor;
+
+                            // 設置為白色背景以確保PDF有正確的背景
+                            canvas.backgroundColor = '#FFFFFF';
+                            canvas.requestRenderAll();
+
+                            // 直接截取螢幕畫面（不指定區域，截取整個canvas）
                             imgData = canvas.toDataURL({
                                 format: config.format,
                                 quality: config.quality,
-                                left: viewLeft,
-                                top: viewTop,
-                                width: viewWidth,
-                                height: viewHeight,
                                 multiplier: config.multiplier
                             });
+
+                            // 恢復原始背景色
+                            canvas.backgroundColor = originalBgColor;
+                            canvas.requestRenderAll();
 
                             console.log(`[下載PDF] 第 ${pageNum} 頁圖片生成成功 (配置 ${i + 1})`);
                             break; // 成功則跳出迴圈
@@ -2792,13 +3048,17 @@ service cloud.firestore {
 
                     // 添加到PDF（第一頁不需要addPage）
                     if (pageNum > 1) {
-                        pdf.addPage([viewWidth, viewHeight]);
+                        pdf.addPage([canvasWidth, canvasHeight]);
                     }
+
+                    // 先添加白色背景
+                    pdf.setFillColor(255, 255, 255); // 白色
+                    pdf.rect(0, 0, canvasWidth, canvasHeight, 'F'); // 填滿整頁
 
                     // 將圖片添加到PDF（填滿整頁，自動檢測格式）
                     const imageFormat = imgData.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-                    pdf.addImage(imgData, imageFormat, 0, 0, viewWidth, viewHeight);
-                    console.log(`[下載PDF] 第 ${pageNum} 頁已添加 (${viewWidth.toFixed(0)}x${viewHeight.toFixed(0)} px, 格式: ${imageFormat})`);
+                    pdf.addImage(imgData, imageFormat, 0, 0, canvasWidth, canvasHeight);
+                    console.log(`[下載PDF] 第 ${pageNum} 頁已添加 (${canvasWidth}x${canvasHeight} px, 格式: ${imageFormat})`);
                 }
 
                 // 恢復作者名稱顯示
@@ -2815,10 +3075,19 @@ service cloud.firestore {
                 if (currentPage !== originalPage) {
                     switchPage(originalPage);
                 } else {
-                    // 確保視圖狀態正確
-                    canvas.setViewportTransform(savedVPT);
-                    canvas.setZoom(savedZoom);
-                    canvas.requestRenderAll();
+                    // 確保視圖狀態正確（恢復原始頁面的視圖）
+                    if (pageViewStates.has(originalPage)) {
+                        const originalState = pageViewStates.get(originalPage);
+                        canvas.setViewportTransform(originalState.viewportTransform);
+                        canvas.setZoom(originalState.zoom);
+                        canvas.requestRenderAll();
+
+                        // 更新縮放UI
+                        const zoomSlider = document.getElementById('zoom-slider');
+                        const zoomLabel = document.getElementById('zoom-label');
+                        if (zoomSlider) zoomSlider.value = originalState.zoom;
+                        if (zoomLabel) zoomLabel.textContent = `${Math.round(originalState.zoom * 100)}%`;
+                    }
                 }
 
                 // 生成檔名（格式：白板_YYYYMMDD_HHMMSS.pdf）
@@ -2831,11 +3100,37 @@ service cloud.firestore {
                 const seconds = String(now.getSeconds()).padStart(2, '0');
                 const filename = `白板_${year}${month}${day}_${hours}${minutes}${seconds}.pdf`;
 
-                // 下載PDF
-                pdf.save(filename);
-                console.log(`[下載PDF] PDF已下載: ${filename}`);
-                showLoading(false);
-                showMessage(`PDF已成功下載！\n檔名：${filename}\n總共 ${totalPages} 頁`);
+                showLoading(true, '正在生成 PDF 檔案...');
+
+                // 下載PDF（使用 Blob 方式以避免字串長度限制）
+                try {
+                    // 嘗試使用更安全的 Blob 方式
+                    const pdfBlob = pdf.output('blob');
+                    const url = URL.createObjectURL(pdfBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+
+                    console.log(`[下載PDF] PDF已下載: ${filename}`);
+                    showLoading(false);
+                    showMessage(`PDF已成功下載！\n檔名：${filename}\n總共 ${totalPages} 頁`);
+                } catch (saveError) {
+                    console.error('[下載PDF] 使用 Blob 下載失敗，嘗試傳統方式:', saveError);
+
+                    // 如果 Blob 方式失敗，嘗試傳統方式
+                    try {
+                        pdf.save(filename);
+                        console.log(`[下載PDF] PDF已下載 (傳統方式): ${filename}`);
+                        showLoading(false);
+                        showMessage(`PDF已成功下載！\n檔名：${filename}\n總共 ${totalPages} 頁`);
+                    } catch (fallbackError) {
+                        throw new Error('PDF 檔案過大，無法下載。請嘗試減少頁數或聯絡管理員。');
+                    }
+                }
 
             } catch (error) {
                 console.error('[下載PDF] 發生錯誤:', error);
@@ -3070,6 +3365,29 @@ service cloud.firestore {
                 // Step 3: Decrement pageCount in metadata
                 await updateDoc(sessionRef, { "metadata.pageCount": pageCount - 1 });
                 console.log(`[Delete Page] Decremented pageCount to ${pageCount - 1}.`);
+
+                // Step 3.5: Update pageViewStates map
+                // Remove the deleted page's view state
+                pageViewStates.delete(pageNum);
+
+                // Re-number view states for subsequent pages
+                if (pageNum < pageCount) {
+                    const newViewStates = new Map();
+                    for (const [page, state] of pageViewStates.entries()) {
+                        if (page < pageNum) {
+                            // Keep pages before the deleted page as-is
+                            newViewStates.set(page, state);
+                        } else if (page > pageNum) {
+                            // Shift pages after the deleted page down by 1
+                            newViewStates.set(page - 1, state);
+                        }
+                    }
+                    pageViewStates.clear();
+                    for (const [page, state] of newViewStates.entries()) {
+                        pageViewStates.set(page, state);
+                    }
+                    console.log(`[Delete Page] Updated pageViewStates after deletion`);
+                }
 
                 // Step 4: Switch to a valid page if the current one was deleted
                 if (currentPage === pageNum) {
