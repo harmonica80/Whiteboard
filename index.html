@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>即時互動數位白板V2.9</title>
+    <title>即時互動數位白板V3.1</title>
     
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,6 +31,20 @@
             background-color: #3b82f6; /* blue-500 */
             color: white;
             box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6;
+        }
+        /* Style for selected shape tool - yellow highlight */
+        #shapes-btn.active {
+            background-color: #eab308; /* yellow-500 */
+            color: white;
+            box-shadow: 0 0 0 2px white, 0 0 0 4px #eab308;
+        }
+        /* Style for author names icon when active - red color */
+        #toggle-author-names-btn.active #author-names-icon {
+            stroke: #ef4444; /* red-500 */
+        }
+        /* Style for allow edit all icon when active - green color */
+        #allow-edit-all-icon.text-green-500 {
+            stroke: #22c55e; /* green-500 */
         }
         .pen-width-btn {
             background-color: #4b5563; /* gray-600 */
@@ -171,7 +185,7 @@
                     ❓ 需要幫助？點此查看 Firebase 設定說明
                 </button>
                 <div class="text-gray-500 text-sm">
-                    Made with ❤️ by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 font-semibold underline">阿剛老師 V2.9</a>
+                    Made with ❤️ by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-700 font-semibold underline">阿剛老師 V3.1</a>
                 </div>
             </div>
         </div>
@@ -203,12 +217,22 @@
             <button class="tool-btn p-3 rounded-lg hover:bg-gray-700" data-tool="pen" title="畫筆 (P)">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
             </button>
-            <button class="tool-btn p-3 rounded-lg hover:bg-gray-700" data-tool="rect" title="矩形 (R)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
-            </button>
-             <button class="tool-btn p-3 rounded-lg hover:bg-gray-700" data-tool="circle" title="圓形 (C)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-            </button>
+            <div class="relative">
+                <button class="tool-btn p-3 rounded-lg hover:bg-gray-700" id="shapes-btn" title="圖形 (S)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+                </button>
+                <div id="shape-options" class="hidden absolute bottom-full mb-2 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-lg p-1 flex flex-col space-y-1">
+                    <button class="shape-btn p-2 rounded-lg hover:bg-gray-600" data-tool="arrow" title="箭頭">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                    </button>
+                    <button class="shape-btn p-2 rounded-lg hover:bg-gray-600" data-tool="circle" title="圓形">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+                    </button>
+                    <button class="shape-btn p-2 rounded-lg hover:bg-gray-600" data-tool="rect" title="矩形">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+                    </button>
+                </div>
+            </div>
             <div id="pen-options" class="hidden flex items-center space-x-2 pl-2">
                 <input type="color" id="pen-color" value="#3b82f6" class="w-8 h-8 rounded-full cursor-pointer bg-transparent border-none" title="畫筆顏色">
                 <button data-width="5" class="pen-width-btn w-6 h-6 rounded-lg flex items-center justify-center text-sm font-semibold">5</button>
@@ -252,13 +276,17 @@
                 <button id="lock-students-btn" class="p-3 rounded-lg hover:bg-gray-700 flex items-center" title="鎖定/解鎖學生工具">
                     <svg id="lock-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 </button>
+                <button id="allow-edit-all-btn" class="p-3 rounded-lg hover:bg-gray-700 flex items-center" title="開放/限制學生編輯所有物件">
+                    <svg id="allow-edit-all-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                </button>
                 <button id="toggle-author-names-btn" class="p-3 rounded-lg hover:bg-gray-700 flex items-center" title="顯示/隱藏作者姓名">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <svg id="author-names-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 </button>
                 <div class="w-px h-8 bg-gray-600 mx-1"></div>
-                <button id="download-pdf-btn" class="p-3 rounded-lg text-green-500 hover:bg-green-500 hover:text-white" title="下載所有畫布為PDF">
+                <button id="export-menu-btn" class="p-3 rounded-lg text-green-500 hover:bg-green-500 hover:text-white" title="匯入/匯出/下載">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 </button>
+                <input type="file" id="json-input" accept=".json" style="display: none;">
                 <div class="w-px h-8 bg-gray-600 mx-1"></div>
                 <button id="leave-session-btn" class="p-3 rounded-lg text-yellow-500 hover:bg-yellow-500 hover:text-white" title="離開白板（不刪除資料）">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -289,11 +317,26 @@
             <span id="zoom-label" class="text-sm w-12 text-center">100%</span>
         </div>
 
+        <!-- Context Menu -->
+        <div id="context-menu" class="hidden fixed bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" style="min-width: 150px;">
+            <button id="context-change-color" class="hidden w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                <span>設定背景色</span>
+            </button>
+            <button id="context-duplicate-text" class="hidden w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>再製便利貼</span>
+            </button>
+            <button id="context-duplicate-image" class="hidden w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"></path></svg>
+                <span>再製圖片</span>
+            </button>
+        </div>
 
     </div>
 
     <!-- Participant List Modal -->
-    <div id="participant-list-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div id="participant-list-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md h-[70vh] flex flex-col">
             <div class="p-4 border-b flex justify-between items-center">
                 <h2 class="text-xl font-bold">線上參與者</h2>
@@ -420,7 +463,7 @@ service cloud.firestore {
     </div>
 
     <!-- Message Overlay -->
-    <div id="message-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4" style="z-index: 9998;">
+    <div id="message-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-60 p-4">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-sm text-center p-6 space-y-4">
             <p id="message-text" class="text-lg text-gray-800"></p>
             <button id="message-ok-btn" class="bg-blue-600 text-white px-8 py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">確定</button>
@@ -428,7 +471,7 @@ service cloud.firestore {
     </div>
 
     <!-- Confirm Overlay -->
-    <div id="confirm-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4" style="z-index: 9999;">
+    <div id="confirm-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[80] p-4">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md text-center p-6 space-y-4">
             <div class="flex justify-center mb-4">
                 <svg class="w-16 h-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,6 +495,77 @@ service cloud.firestore {
         </div>
     </div>
 
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="hidden fixed top-20 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg z-70 max-w-md text-center">
+        <p id="toast-text"></p>
+    </div>
+
+    <!-- Page Selector Modal -->
+    <div id="page-selector-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-60 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">選擇要貼上的分頁</h3>
+            <div id="page-selector-list" class="max-h-96 overflow-y-auto space-y-2 mb-6">
+                <!-- Page buttons will be rendered here -->
+            </div>
+            <div class="flex justify-end">
+                <button id="page-selector-cancel" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Color Picker Modal -->
+    <div id="color-picker-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-60 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">選擇便利貼背景色</h3>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <button data-color="#FFFBEB" class="h-24 rounded-lg border-4 border-transparent hover:border-blue-500 transition-all" style="background-color: #FFFBEB;">
+                    <span class="text-gray-700 font-medium">黃色</span>
+                </button>
+                <button data-color="#EFF6FF" class="h-24 rounded-lg border-4 border-transparent hover:border-blue-500 transition-all" style="background-color: #EFF6FF;">
+                    <span class="text-gray-700 font-medium">藍色</span>
+                </button>
+                <button data-color="#FCE7F3" class="h-24 rounded-lg border-4 border-transparent hover:border-blue-500 transition-all" style="background-color: #FCE7F3;">
+                    <span class="text-gray-700 font-medium">粉色</span>
+                </button>
+                <button data-color="#F0FDF4" class="h-24 rounded-lg border-4 border-transparent hover:border-blue-500 transition-all" style="background-color: #F0FDF4;">
+                    <span class="text-gray-700 font-medium">綠色</span>
+                </button>
+            </div>
+            <div class="flex justify-end">
+                <button id="color-picker-cancel" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options Modal -->
+    <div id="export-options-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-60 p-4">
+        <div class="bg-white rounded-lg shadow-xl p-6">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">選擇操作</h3>
+            <div class="flex gap-4 mb-6">
+                <!-- 下載 PDF -->
+                <button id="download-pdf-btn" class="w-40 h-40 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 18 15 15"></polyline></svg>
+                    <span class="text-lg font-semibold">下載 PDF</span>
+                </button>
+
+                <!-- 匯出 JSON -->
+                <button id="export-json-btn" class="w-40 h-40 bg-green-500 text-white rounded-lg hover:bg-green-600 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span class="text-lg font-semibold">匯出 JSON</span>
+                </button>
+
+                <!-- 匯入 JSON -->
+                <button id="import-json-btn" class="w-40 h-40 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex flex-col items-center justify-center space-y-3 transition-all transform hover:scale-105 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <span class="text-lg font-semibold">匯入 JSON</span>
+                </button>
+            </div>
+            <div class="flex justify-center">
+                <button id="export-options-cancel" class="px-8 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-all">取消</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
@@ -470,6 +584,112 @@ service cloud.firestore {
                 console.warn("showMessage UI not found, falling back to native alert.");
                 alert(message);
             }
+        }
+
+        // --- Toast Notification (non-blocking) ---
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast-notification');
+            const text = document.getElementById('toast-text');
+            if (toast && text) {
+                text.textContent = message;
+                toast.classList.remove('hidden');
+
+                // Auto-hide after duration
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                }, duration);
+            }
+        }
+
+        // --- Page Selector Modal ---
+        function showPageSelector(totalPages, currentPageNum) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('page-selector-modal');
+                const listContainer = document.getElementById('page-selector-list');
+                const cancelBtn = document.getElementById('page-selector-cancel');
+
+                if (!modal || !listContainer) {
+                    console.error('Page selector modal not found');
+                    resolve(null);
+                    return;
+                }
+
+                // Clear previous content
+                listContainer.innerHTML = '';
+
+                // Create page buttons
+                for (let i = 1; i <= totalPages; i++) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.className = 'w-full px-4 py-3 text-left rounded-lg font-medium transition-colors';
+
+                    if (i === currentPageNum) {
+                        pageBtn.className += ' bg-blue-500 text-white';
+                        pageBtn.innerHTML = `分頁 ${i} <span class="text-sm">(目前分頁)</span>`;
+                    } else {
+                        pageBtn.className += ' bg-gray-100 hover:bg-gray-200 text-gray-800';
+                        pageBtn.innerHTML = `分頁 ${i}`;
+                    }
+
+                    pageBtn.addEventListener('click', () => {
+                        modal.classList.add('hidden');
+                        resolve(i);
+                    });
+
+                    listContainer.appendChild(pageBtn);
+                }
+
+                // Cancel button
+                const cancelHandler = () => {
+                    modal.classList.add('hidden');
+                    resolve(null);
+                };
+                cancelBtn.removeEventListener('click', cancelHandler);
+                cancelBtn.addEventListener('click', cancelHandler);
+
+                // Show modal
+                modal.classList.remove('hidden');
+            });
+        }
+
+        // --- Color Picker Modal ---
+        function showColorPicker() {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('color-picker-modal');
+                const colorButtons = modal.querySelectorAll('button[data-color]');
+                const cancelBtn = document.getElementById('color-picker-cancel');
+
+                if (!modal) {
+                    console.error('Color picker modal not found');
+                    resolve(null);
+                    return;
+                }
+
+                // Add click handlers to color buttons
+                const colorHandlers = [];
+                colorButtons.forEach(btn => {
+                    const handler = () => {
+                        const color = btn.dataset.color;
+                        modal.classList.add('hidden');
+                        resolve(color);
+                    };
+                    colorHandlers.push({ btn, handler });
+                    btn.addEventListener('click', handler);
+                });
+
+                // Cancel button
+                const cancelHandler = () => {
+                    modal.classList.add('hidden');
+                    // Clean up event listeners
+                    colorHandlers.forEach(({ btn, handler }) => {
+                        btn.removeEventListener('click', handler);
+                    });
+                    resolve(null);
+                };
+                cancelBtn.addEventListener('click', cancelHandler, { once: true });
+
+                // Show modal
+                modal.classList.remove('hidden');
+            });
         }
 
         // --- Custom Confirm Overlay ---
@@ -538,6 +758,7 @@ service cloud.firestore {
         let isLocked = false;
         let isCurrentUserIndividuallyLocked = false;
         let showAuthorNames = false;
+        let allowStudentEditAll = false; // Allow students to edit all objects
         const participantDataMap = new Map(); // Map<uid, {name, role, isLockedByTeacher}>
         let isDrawing = false, isPanning = false, lastPointer = { x: 0, y: 0 };
         let touchStartTime = 0; // Track when first touch started
@@ -702,6 +923,7 @@ service cloud.firestore {
                         isLocked: false,
                         ownerUid: auth.currentUser.uid,
                         showAuthorNames: false,
+                        allowStudentEditAll: false,
                         pageCount: 1
                     }
                 });
@@ -1234,6 +1456,7 @@ service cloud.firestore {
                                 }
                                 fabricObj.docId = docId;
                                 fabricObj.authorUid = objectData.authorUid;
+                                fabricObj.authorName = objectData.authorName; // Preserve author name from imported JSON
                                 fabricObj.page = objectData.page;
                                 setupNewObject(fabricObj);
                                 fabricObjects.set(docId, fabricObj);
@@ -1358,6 +1581,15 @@ service cloud.firestore {
                     // Handle showAuthorNames state change
                     if (data.showAuthorNames !== showAuthorNames) {
                         showAuthorNames = data.showAuthorNames;
+
+                        // Update button appearance
+                        const authorBtn = document.getElementById('toggle-author-names-btn');
+                        if (showAuthorNames) {
+                            authorBtn.classList.add('active');
+                        } else {
+                            authorBtn.classList.remove('active');
+                        }
+
                         canvas.forEachObject(obj => {
                             if (obj.authorUid) {
                                 if (showAuthorNames) {
@@ -1366,6 +1598,27 @@ service cloud.firestore {
                                     removeAuthorNameText(obj);
                                 }
                             }
+                        });
+                        canvas.requestRenderAll();
+                    }
+
+                    // Handle allowStudentEditAll state change
+                    if (data.allowStudentEditAll !== allowStudentEditAll) {
+                        allowStudentEditAll = data.allowStudentEditAll || false;
+
+                        // Update button appearance
+                        const allowEditAllIcon = document.getElementById('allow-edit-all-icon');
+                        if (allowEditAllIcon) {
+                            if (allowStudentEditAll) {
+                                allowEditAllIcon.classList.add('text-green-500');
+                            } else {
+                                allowEditAllIcon.classList.remove('text-green-500');
+                            }
+                        }
+
+                        // Re-apply permissions to all objects
+                        canvas.forEachObject(obj => {
+                            applyObjectPermissions(obj);
                         });
                         canvas.requestRenderAll();
                     }
@@ -1642,7 +1895,7 @@ service cloud.firestore {
                     return;
                 }
 
-                // Handle shape drawing (rect, circle)
+                // Handle shape drawing (rect, circle, arrow)
                 continueDrawing(opt);
             });
 
@@ -1672,11 +1925,11 @@ service cloud.firestore {
                     return;
                 }
 
-                // Finalize shape drawing (rect, circle)
+                // Finalize shape drawing (rect, circle, arrow)
                 stopDrawing();
 
                 // For shape drawing tools, ensure the canvas returns to a non-selecting state
-                if (['rect', 'circle'].includes(activeTool)) {
+                if (['rect', 'circle', 'arrow'].includes(activeTool)) {
                     canvas.discardActiveObject();
                     canvas.requestRenderAll();
                 }
@@ -1727,7 +1980,7 @@ service cloud.firestore {
 
                         // Permission check for each object
                         if (userRole === 'student') {
-                            if (innerObj.authorUid !== auth.currentUser.uid) {
+                            if (!allowStudentEditAll && innerObj.authorUid !== auth.currentUser.uid) {
                                 console.log(`[object:modified] Student skipping object from another user`);
                                 continue;
                             }
@@ -1786,9 +2039,9 @@ service cloud.firestore {
                     return;
                 }
 
-                // Permission check: Teachers can modify all objects, students can only modify their own
+                // Permission check: Teachers can modify all objects, students can modify based on allowStudentEditAll
                 if (userRole === 'student') {
-                    if (updatedObject.authorUid !== auth.currentUser.uid) {
+                    if (!allowStudentEditAll && updatedObject.authorUid !== auth.currentUser.uid) {
                         console.warn('❌ [object:modified] Student cannot modify object created by another user', {
                             objectAuthorUid: updatedObject.authorUid,
                             currentUserUid: auth.currentUser.uid
@@ -1854,9 +2107,9 @@ service cloud.firestore {
                     return;
                 }
 
-                // Permission check: Teachers can modify all objects, students can only modify their own
+                // Permission check: Teachers can modify all objects, students can modify based on allowStudentEditAll
                 if (userRole === 'student') {
-                    if (obj.authorUid !== auth.currentUser.uid) return;
+                    if (!allowStudentEditAll && obj.authorUid !== auth.currentUser.uid) return;
                     if (isLocked) return;
                 }
 
@@ -1951,9 +2204,9 @@ service cloud.firestore {
                     return;
                 }
 
-                // Permission check: Teachers can modify all objects, students can only modify their own
+                // Permission check: Teachers can modify all objects, students can modify based on allowStudentEditAll
                 if (userRole === 'student') {
-                    if (obj.authorUid !== auth.currentUser.uid) return;
+                    if (!allowStudentEditAll && obj.authorUid !== auth.currentUser.uid) return;
                     if (isLocked) return;
                 }
 
@@ -2046,6 +2299,291 @@ service cloud.firestore {
             updateZoomUI(); // Set initial UI state
             activateTool('select');
 
+            // Context menu handling
+            let contextMenuTarget = null;
+            let longPressTimer = null;
+            const contextMenu = document.getElementById('context-menu');
+            const changeColorBtn = document.getElementById('context-change-color');
+            const duplicateTextBtn = document.getElementById('context-duplicate-text');
+            const duplicateImageBtn = document.getElementById('context-duplicate-image');
+
+            // Right-click and long-press handler
+            canvas.on('mouse:down', function(opt) {
+                const evt = opt.e;
+
+                // Right-click detection
+                if (evt.button === 2 || evt.which === 3) {
+                    evt.preventDefault();
+                    const target = canvas.findTarget(evt);
+                    // Show context menu only for objects
+                    if (target && (target.type === 'i-text' || target.type === 'image')) {
+                        showContextMenu(target, evt.clientX, evt.clientY);
+                    }
+                }
+
+                // Long-press detection for iPad
+                if (evt.touches && evt.touches.length === 1) {
+                    const target = canvas.findTarget(evt);
+                    // Long-press on objects only
+                    if (target && (target.type === 'i-text' || target.type === 'image')) {
+                        longPressTimer = setTimeout(() => {
+                            const touch = evt.touches[0];
+                            showContextMenu(target, touch.clientX, touch.clientY);
+                        }, 500); // 500ms for long press
+                    }
+                }
+            });
+
+            // Cancel long press on move or up
+            canvas.on('mouse:move', function() {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            });
+
+            canvas.on('mouse:up', function() {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            });
+
+            // Prevent default context menu
+            document.getElementById('whiteboard-canvas').addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+            });
+
+            // Show context menu
+            function showContextMenu(target, x, y) {
+                contextMenuTarget = target;
+
+                // Hide all menu items first
+                changeColorBtn.classList.add('hidden');
+                duplicateTextBtn.classList.add('hidden');
+                duplicateImageBtn.classList.add('hidden');
+
+                // Show appropriate menu item based on object type
+                if (target && target.type === 'i-text') {
+                    // Text object - show change color and duplicate
+                    changeColorBtn.classList.remove('hidden');
+                    duplicateTextBtn.classList.remove('hidden');
+                } else if (target && target.type === 'image') {
+                    // Image object - show duplicate only
+                    duplicateImageBtn.classList.remove('hidden');
+                }
+
+                // Only show menu if there are visible items
+                const hasVisibleItems = !changeColorBtn.classList.contains('hidden') ||
+                                       !duplicateTextBtn.classList.contains('hidden') ||
+                                       !duplicateImageBtn.classList.contains('hidden');
+
+                if (hasVisibleItems) {
+                    // Position and show menu
+                    contextMenu.style.left = x + 'px';
+                    contextMenu.style.top = y + 'px';
+                    contextMenu.classList.remove('hidden');
+                }
+            }
+
+            // Hide context menu
+            function hideContextMenu() {
+                contextMenu.classList.add('hidden');
+                contextMenuTarget = null;
+            }
+
+            // Click outside to close
+            document.addEventListener('click', (e) => {
+                if (!contextMenu.contains(e.target)) {
+                    hideContextMenu();
+                }
+            });
+
+            // Change text background color
+            changeColorBtn.addEventListener('click', async () => {
+                if (contextMenuTarget && contextMenuTarget.type === 'i-text') {
+                    // Save reference before hiding menu
+                    const targetObject = contextMenuTarget;
+
+                    // Hide context menu
+                    hideContextMenu();
+
+                    // Show color picker
+                    const selectedColor = await showColorPicker();
+
+                    if (selectedColor === null) {
+                        // User cancelled
+                        return;
+                    }
+
+                    try {
+                        // Update the background color
+                        targetObject.set('backgroundColor', selectedColor);
+                        canvas.requestRenderAll();
+
+                        // Update in Firestore
+                        if (targetObject.docId) {
+                            const objectRef = doc(db, "sessions", sessionId, "canvasObjects", targetObject.docId);
+                            const objData = targetObject.toJSON(['authorUid', 'page', 'docId']);
+                            await updateDoc(objectRef, { data: objData });
+                            console.log('[Change Color] Background color updated');
+                            showToast('便利貼背景色已更新');
+                        }
+                    } catch (err) {
+                        console.error('Failed to change color:', err);
+                        showToast('更改背景色失敗');
+                    }
+                }
+            });
+
+            // Duplicate text (sticky note)
+            duplicateTextBtn.addEventListener('click', async () => {
+                if (contextMenuTarget && contextMenuTarget.type === 'i-text') {
+                    try {
+                        // Get current page count from Firestore
+                        const sessionRef = doc(db, "sessions", sessionId);
+                        const sessionSnap = await getDoc(sessionRef);
+
+                        if (!sessionSnap.exists()) {
+                            showToast('無法獲取分頁資訊');
+                            hideContextMenu();
+                            return;
+                        }
+
+                        const pageCount = sessionSnap.data().metadata?.pageCount || 1;
+                        const original = contextMenuTarget;
+
+                        // Hide context menu first
+                        hideContextMenu();
+
+                        // Show page selector
+                        const selectedPage = await showPageSelector(pageCount, currentPage);
+
+                        if (selectedPage === null) {
+                            // User cancelled
+                            return;
+                        }
+
+                        // Clone the text object
+                        original.clone(async (cloned) => {
+                            // Set position and properties with slight offset to avoid overlap
+                            cloned.set({
+                                left: original.left + 15,
+                                top: original.top + 15,
+                                authorUid: auth.currentUser.uid,
+                                page: selectedPage
+                            });
+
+                            // Serialize object data
+                            const objData = cloned.toObject();
+
+                            // Add to Firestore using the correct collection path
+                            const newDocRef = doc(collection(db, "sessions", sessionId, "canvasObjects"));
+
+                            // CRITICAL: Set docId and add to fabricObjects BEFORE setDoc
+                            // This prevents Firestore listener from creating a duplicate
+                            cloned.docId = newDocRef.id;
+                            fabricObjects.set(newDocRef.id, cloned);
+
+                            // If duplicating to current page, add to canvas immediately
+                            if (selectedPage === currentPage) {
+                                setupNewObject(cloned); // This already calls canvas.add internally
+                                cloned.bringToFront(); // Bring duplicated text to front so it's selected first
+                                canvas.requestRenderAll();
+                            }
+
+                            // Now save to Firestore (listener will skip because fabricObjects.has(docId) is true)
+                            await setDoc(newDocRef, {
+                                type: cloned.type,
+                                data: objData,
+                                authorUid: auth.currentUser.uid,
+                                page: selectedPage
+                            });
+
+                            console.log(`[Duplicate Text] Text duplicated to page ${selectedPage}`);
+                            showToast(`便利貼已複製到分頁 ${selectedPage}`);
+                        });
+                    } catch (err) {
+                        console.error('Failed to duplicate text:', err);
+                        showToast('複製便利貼失敗');
+                    }
+                }
+            });
+
+            // Duplicate image
+            duplicateImageBtn.addEventListener('click', async () => {
+                if (contextMenuTarget && contextMenuTarget.type === 'image') {
+                    try {
+                        // Get current page count from Firestore
+                        const sessionRef = doc(db, "sessions", sessionId);
+                        const sessionSnap = await getDoc(sessionRef);
+
+                        if (!sessionSnap.exists()) {
+                            showToast('無法獲取分頁資訊');
+                            hideContextMenu();
+                            return;
+                        }
+
+                        const pageCount = sessionSnap.data().metadata?.pageCount || 1;
+                        const original = contextMenuTarget;
+
+                        // Hide context menu first
+                        hideContextMenu();
+
+                        // Show page selector
+                        const selectedPage = await showPageSelector(pageCount, currentPage);
+
+                        if (selectedPage === null) {
+                            // User cancelled
+                            return;
+                        }
+
+                        // Clone the image
+                        original.clone(async (cloned) => {
+                            // Set position and properties with slight offset to avoid overlap
+                            cloned.set({
+                                left: original.left + 15,
+                                top: original.top + 15,
+                                authorUid: auth.currentUser.uid,
+                                page: selectedPage
+                            });
+
+                            // Serialize object data
+                            const objData = cloned.toObject();
+
+                            // Add to Firestore using the correct collection path
+                            const newDocRef = doc(collection(db, "sessions", sessionId, "canvasObjects"));
+
+                            // CRITICAL: Set docId and add to fabricObjects BEFORE setDoc
+                            // This prevents Firestore listener from creating a duplicate
+                            cloned.docId = newDocRef.id;
+                            fabricObjects.set(newDocRef.id, cloned);
+
+                            // If duplicating to current page, add to canvas immediately
+                            if (selectedPage === currentPage) {
+                                setupNewObject(cloned); // This already calls canvas.add internally
+                                cloned.bringToFront(); // Bring duplicated image to front so it's selected first
+                                canvas.requestRenderAll();
+                            }
+
+                            // Now save to Firestore (listener will skip because fabricObjects.has(docId) is true)
+                            await setDoc(newDocRef, {
+                                type: cloned.type,
+                                data: objData,
+                                authorUid: auth.currentUser.uid,
+                                page: selectedPage
+                            });
+
+                            console.log(`[Duplicate Image] Image duplicated to page ${selectedPage}`);
+                            showToast(`圖片已複製到分頁 ${selectedPage}`);
+                        });
+                    } catch (err) {
+                        console.error('Failed to duplicate image:', err);
+                        showToast('複製圖片失敗');
+                    }
+                }
+            });
+
             // Start inactivity timer for students
             if (userRole === 'student') {
                 startInactivityTimer();
@@ -2114,14 +2652,45 @@ service cloud.firestore {
 
             document.getElementById('pen-options').classList.add('hidden');
             document.getElementById('note-options').classList.add('hidden');
+            document.getElementById('shape-options').classList.add('hidden');
 
             toolButtons.forEach(b => b.classList.remove('active'));
             const currentBtn = document.querySelector(`.tool-btn[data-tool="${tool}"]`);
             if(currentBtn) currentBtn.classList.add('active');
 
+            // Keep shapes button active if a shape tool is selected
+            const shapeTools = ['rect', 'circle', 'arrow'];
+            if (shapeTools.includes(tool)) {
+                document.getElementById('shapes-btn').classList.add('active');
+                // Don't show shape-options here - it should only show when clicking the shapes button
+            } else {
+                document.getElementById('shapes-btn').classList.remove('active');
+                // Reset shapes button icon to default (circle) when switching to non-shape tool
+                const shapesBtn = document.getElementById('shapes-btn');
+                const currentSvg = shapesBtn.querySelector('svg');
+                const defaultSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                defaultSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                defaultSvg.setAttribute('width', '24');
+                defaultSvg.setAttribute('height', '24');
+                defaultSvg.setAttribute('viewBox', '0 0 24 24');
+                defaultSvg.setAttribute('fill', 'none');
+                defaultSvg.setAttribute('stroke', 'currentColor');
+                defaultSvg.setAttribute('stroke-width', '2');
+                defaultSvg.setAttribute('stroke-linecap', 'round');
+                defaultSvg.setAttribute('stroke-linejoin', 'round');
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', '12');
+                circle.setAttribute('cy', '12');
+                circle.setAttribute('r', '10');
+                defaultSvg.appendChild(circle);
+                if (currentSvg) {
+                    currentSvg.replaceWith(defaultSvg);
+                }
+            }
+
             if (!canvas) return;
 
-            const isDrawingTool = ['pen', 'rect', 'circle'].includes(tool);
+            const isDrawingTool = ['pen', 'rect', 'circle', 'arrow'].includes(tool);
             const isSelectMode = tool === 'select';
             const isPanMode = tool === 'pan';
 
@@ -2613,8 +3182,8 @@ service cloud.firestore {
 
         let shape, isDown, origX, origY;
         function startDrawing(opt) {
-            if (!canvas || !['rect', 'circle'].includes(activeTool)) return;
-            
+            if (!canvas || !['rect', 'circle', 'arrow'].includes(activeTool)) return;
+
             isDown = true;
             const pointer = canvas.getPointer(opt.e);
             origX = pointer.x;
@@ -2636,6 +3205,13 @@ service cloud.firestore {
                 shape = new fabric.Rect({ ...sharedProps, width: 0, height: 0 });
             } else if (activeTool === 'circle') {
                 shape = new fabric.Circle({ ...sharedProps, radius: 0 });
+            } else if (activeTool === 'arrow') {
+                // Create arrow as a line with arrow marker at the end
+                shape = new fabric.Line([origX, origY, origX, origY], {
+                    ...sharedProps,
+                    originX: 'center',
+                    originY: 'center'
+                });
             }
             setupNewObject(shape);
         }
@@ -2643,19 +3219,81 @@ service cloud.firestore {
         function continueDrawing(opt) {
              if (!isDown || !shape) return;
              const pointer = canvas.getPointer(opt.e);
-             
+
              if (activeTool === 'rect') {
                 if (origX > pointer.x) { shape.set({ left: Math.abs(pointer.x) }); }
                 if (origY > pointer.y) { shape.set({ top: Math.abs(pointer.y) }); }
                 shape.set({ width: Math.abs(origX - pointer.x), height: Math.abs(origY - pointer.y) });
              } else if (activeTool === 'circle') {
                 shape.set({ radius: Math.sqrt(Math.pow(origX - pointer.x, 2) + Math.pow(origY - pointer.y, 2)) / 2 });
+             } else if (activeTool === 'arrow') {
+                shape.set({ x2: pointer.x, y2: pointer.y });
              }
              canvas.requestRenderAll();
         }
 
         function stopDrawing() {
             if (isDown && shape) {
+                // If drawing an arrow, replace the line with an arrow with angle bracket head at the end
+                if (activeTool === 'arrow') {
+                    const line = shape;
+                    const x1 = line.x1, y1 = line.y1, x2 = line.x2, y2 = line.y2;
+
+                    // Calculate arrow angle and distance
+                    const angle = Math.atan2(y2 - y1, x2 - x1);
+                    const distance = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+
+                    // Only create arrow if distance is meaningful
+                    if (distance > 10) {
+                        // Set arrowhead line length based on stroke width
+                        // Thicker lines get longer arrowheads for better visibility
+                        const baseLength = line.strokeWidth * 3;
+                        const arrowheadLength = Math.max(baseLength, Math.min(baseLength * 1.5, distance / 4));
+
+                        // Create main arrow line
+                        const arrowLine = new fabric.Line([x1, y1, x2, y2], {
+                            stroke: line.stroke,
+                            strokeWidth: line.strokeWidth,
+                            selectable: false
+                        });
+
+                        // Create right-angle arrowhead (two lines at 45 degrees)
+                        // First line: from endpoint back at angle + 135 degrees (45 degrees from main line)
+                        const angle1 = angle + (135 * Math.PI / 180);
+                        const arrow1EndX = x2 + arrowheadLength * Math.cos(angle1);
+                        const arrow1EndY = y2 + arrowheadLength * Math.sin(angle1);
+                        const arrowLine1 = new fabric.Line([x2, y2, arrow1EndX, arrow1EndY], {
+                            stroke: line.stroke,
+                            strokeWidth: line.strokeWidth,
+                            selectable: false
+                        });
+
+                        // Second line: from endpoint back at angle - 135 degrees (45 degrees from main line)
+                        const angle2 = angle - (135 * Math.PI / 180);
+                        const arrow2EndX = x2 + arrowheadLength * Math.cos(angle2);
+                        const arrow2EndY = y2 + arrowheadLength * Math.sin(angle2);
+                        const arrowLine2 = new fabric.Line([x2, y2, arrow2EndX, arrow2EndY], {
+                            stroke: line.stroke,
+                            strokeWidth: line.strokeWidth,
+                            selectable: false
+                        });
+
+                        // Remove the temporary line and create arrow group
+                        canvas.remove(shape);
+
+                        // Create group with main line and two arrowhead lines
+                        const arrowGroup = new fabric.Group([arrowLine, arrowLine1, arrowLine2], {
+                            left: (x1 + x2) / 2,
+                            top: (y1 + y2) / 2,
+                            originX: 'center',
+                            originY: 'center'
+                        });
+
+                        setupNewObject(arrowGroup);
+                        shape = arrowGroup;
+                    }
+                }
+
                 addObjectToFirestore(shape);
                 shape = null;
             }
@@ -2665,6 +3303,43 @@ service cloud.firestore {
         document.getElementById('note-options').addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON' && e.target.dataset.color) {
                 addStickyNote(e.target.dataset.color);
+            }
+        });
+
+        // Handle shapes button toggle
+        document.getElementById('shapes-btn').addEventListener('click', () => {
+            const shapeOptions = document.getElementById('shape-options');
+            const isHidden = shapeOptions.classList.contains('hidden');
+
+            // Toggle shape options visibility
+            if (isHidden) {
+                shapeOptions.classList.remove('hidden');
+                document.getElementById('shapes-btn').classList.add('active');
+            } else {
+                shapeOptions.classList.add('hidden');
+                document.getElementById('shapes-btn').classList.remove('active');
+            }
+        });
+
+        // Handle shape selection
+        document.getElementById('shape-options').addEventListener('click', (e) => {
+            const shapeBtn = e.target.closest('.shape-btn');
+            if (shapeBtn && shapeBtn.dataset.tool) {
+                // Get the SVG from the clicked shape button
+                const shapeSvg = shapeBtn.querySelector('svg').cloneNode(true);
+
+                // Update the main shapes button icon
+                const shapesBtn = document.getElementById('shapes-btn');
+                const oldSvg = shapesBtn.querySelector('svg');
+                if (oldSvg) {
+                    oldSvg.replaceWith(shapeSvg);
+                }
+
+                // Close the shape options menu
+                document.getElementById('shape-options').classList.add('hidden');
+
+                // Activate the selected tool
+                activateTool(shapeBtn.dataset.tool);
             }
         });
 
@@ -2856,6 +3531,22 @@ service cloud.firestore {
             }
         });
 
+        document.getElementById('allow-edit-all-btn').addEventListener('click', async () => {
+            if (userRole !== 'teacher') return; // Only teacher can toggle
+
+            const sessionRef = doc(db, "sessions", sessionId);
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const sfDoc = await transaction.get(sessionRef);
+                    if (!sfDoc.exists()) throw "Document does not exist!";
+                    const currentAllowEditAll = sfDoc.data().metadata.allowStudentEditAll || false;
+                    transaction.update(sessionRef, { "metadata.allowStudentEditAll": !currentAllowEditAll });
+                });
+            } catch (e) {
+                console.error("Toggle allow edit all transaction failed: ", e);
+            }
+        });
+
         document.getElementById('lock-students-btn').addEventListener('click', async () => {
             const sessionRef = doc(db, "sessions", sessionId);
             try {
@@ -2870,7 +3561,52 @@ service cloud.firestore {
             }
         });
 
+        // Export options modal
+        const exportMenuBtn = document.getElementById('export-menu-btn');
+        const exportOptionsModal = document.getElementById('export-options-modal');
+        const exportOptionsCancelBtn = document.getElementById('export-options-cancel');
+
+        // Show export options modal
+        exportMenuBtn.addEventListener('click', () => {
+            exportOptionsModal.classList.remove('hidden');
+        });
+
+        // Close modal when clicking cancel
+        exportOptionsCancelBtn.addEventListener('click', () => {
+            exportOptionsModal.classList.add('hidden');
+        });
+
+        // Close modal when clicking outside
+        exportOptionsModal.addEventListener('click', (e) => {
+            if (e.target === exportOptionsModal) {
+                exportOptionsModal.classList.add('hidden');
+            }
+        });
+
+        // Export JSON
+        document.getElementById('export-json-btn').addEventListener('click', async () => {
+            exportOptionsModal.classList.add('hidden');
+            await exportWhiteboardAsJSON();
+        });
+
+        // Import JSON
+        document.getElementById('import-json-btn').addEventListener('click', () => {
+            exportOptionsModal.classList.add('hidden');
+            document.getElementById('json-input').click();
+        });
+
+        // Handle JSON file import
+        document.getElementById('json-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                await importWhiteboardFromJSON(file);
+            }
+            e.target.value = ''; // Reset input
+        });
+
+        // Download PDF
         document.getElementById('download-pdf-btn').addEventListener('click', async () => {
+            exportOptionsModal.classList.add('hidden');
             await downloadCanvasAsPDF();
         });
 
@@ -2887,6 +3623,169 @@ service cloud.firestore {
                 deleteAllSessions();
             }
         });
+
+        // Export whiteboard as JSON
+        async function exportWhiteboardAsJSON() {
+            try {
+                console.log('[匯出JSON] 開始匯出白板...');
+                showLoading(true, '正在匯出白板資料...');
+
+                // Get session metadata
+                const sessionRef = doc(db, "sessions", sessionId);
+                const sessionSnap = await getDoc(sessionRef);
+
+                if (!sessionSnap.exists()) {
+                    showMessage('找不到白板資料');
+                    showLoading(false);
+                    return;
+                }
+
+                const metadata = sessionSnap.data().metadata;
+                const pageCount = metadata.pageCount || 1;
+
+                // Collect all objects from all pages
+                const objectsRef = collection(db, "sessions", sessionId, "canvasObjects");
+                const objectsSnap = await getDocs(objectsRef);
+
+                const allObjects = [];
+                objectsSnap.forEach(doc => {
+                    const objData = doc.data();
+                    const obj = {
+                        id: doc.id,
+                        ...objData
+                    };
+
+                    // Add author name if available in participantDataMap
+                    if (objData.authorUid && participantDataMap.has(objData.authorUid)) {
+                        obj.authorName = participantDataMap.get(objData.authorUid).name;
+                    }
+
+                    allObjects.push(obj);
+                });
+
+                // Create export data
+                const exportData = {
+                    version: "1.0",
+                    exportDate: new Date().toISOString(),
+                    sessionId: sessionId,
+                    metadata: {
+                        pageCount: pageCount,
+                        isLocked: metadata.isLocked || false,
+                        showAuthorNames: metadata.showAuthorNames || false,
+                        allowStudentEditAll: metadata.allowStudentEditAll || false
+                    },
+                    objects: allObjects
+                };
+
+                // Convert to JSON and download
+                const jsonString = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `whiteboard_${sessionId}_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                console.log(`[匯出JSON] 成功匯出 ${allObjects.length} 個物件，共 ${pageCount} 頁`);
+                showToast(`白板已匯出！包含 ${pageCount} 頁，${allObjects.length} 個物件`);
+                showLoading(false);
+            } catch (error) {
+                console.error('[匯出JSON] 錯誤:', error);
+                showMessage(`匯出失敗: ${error.message}`);
+                showLoading(false);
+            }
+        }
+
+        // Import whiteboard from JSON
+        async function importWhiteboardFromJSON(file) {
+            try {
+                console.log('[匯入JSON] 開始匯入白板...');
+
+                // Confirm before clearing
+                const confirmed = await showConfirm(
+                    '⚠️ 確認匯入',
+                    '匯入將會清空當前白板的所有內容，此動作無法復原。\n\n是否繼續？'
+                );
+
+                if (!confirmed) {
+                    console.log('[匯入JSON] 用戶取消匯入');
+                    return;
+                }
+
+                showLoading(true, '正在讀取檔案...');
+
+                // Read file
+                const text = await file.text();
+                const importData = JSON.parse(text);
+
+                console.log('[匯入JSON] 檔案讀取成功，版本:', importData.version);
+
+                // Validate data
+                if (!importData.metadata || !importData.objects) {
+                    throw new Error('無效的JSON格式');
+                }
+
+                showLoading(true, '正在清空現有內容...');
+
+                // Clear all existing objects
+                const objectsRef = collection(db, "sessions", sessionId, "canvasObjects");
+                const existingObjectsSnap = await getDocs(objectsRef);
+
+                const deleteBatch = writeBatch(db);
+                let deleteCount = 0;
+                existingObjectsSnap.forEach(doc => {
+                    deleteBatch.delete(doc.ref);
+                    deleteCount++;
+                });
+
+                if (deleteCount > 0) {
+                    await deleteBatch.commit();
+                    console.log(`[匯入JSON] 已刪除 ${deleteCount} 個現有物件`);
+                }
+
+                showLoading(true, '正在匯入新內容...');
+
+                // Import new objects
+                const importBatch = writeBatch(db);
+                let importCount = 0;
+
+                for (const obj of importData.objects) {
+                    const newDocRef = doc(objectsRef, obj.id);
+                    const { id, ...objData } = obj; // Remove id from data
+                    importBatch.set(newDocRef, objData);
+                    importCount++;
+                }
+
+                await importBatch.commit();
+                console.log(`[匯入JSON] 已匯入 ${importCount} 個物件`);
+
+                // Update metadata (including showAuthorNames and isLocked)
+                const sessionRef = doc(db, "sessions", sessionId);
+                await updateDoc(sessionRef, {
+                    "metadata.pageCount": importData.metadata.pageCount,
+                    "metadata.isLocked": importData.metadata.isLocked || false,
+                    "metadata.showAuthorNames": importData.metadata.showAuthorNames || false,
+                    "metadata.allowStudentEditAll": importData.metadata.allowStudentEditAll || false
+                });
+
+                console.log(`[匯入JSON] 已更新metadata - 分頁數: ${importData.metadata.pageCount}, 鎖定: ${importData.metadata.isLocked}, 顯示作者: ${importData.metadata.showAuthorNames}, 開放編輯: ${importData.metadata.allowStudentEditAll}`);
+
+                // Switch to first page
+                if (currentPage !== 1) {
+                    switchPage(1);
+                }
+
+                showToast(`白板匯入成功！包含 ${importData.metadata.pageCount} 頁，${importCount} 個物件`);
+                showLoading(false);
+            } catch (error) {
+                console.error('[匯入JSON] 錯誤:', error);
+                showMessage(`匯入失敗: ${error.message}`);
+                showLoading(false);
+            }
+        }
 
         async function downloadCanvasAsPDF() {
             try {
@@ -3479,7 +4378,11 @@ service cloud.firestore {
                     isSelectable = false;
                     debugInfo.reason = 'locked';
                 } else { // If not locked, apply author-based permissions
-                    if (obj.authorUid === auth.currentUser.uid) {
+                    // If allowStudentEditAll is true, students can edit all objects
+                    if (allowStudentEditAll) {
+                        isSelectable = true;
+                        debugInfo.reason = 'edit all allowed';
+                    } else if (obj.authorUid === auth.currentUser.uid) {
                         isSelectable = true;
                         debugInfo.reason = 'owner';
                     } else {
@@ -3520,9 +4423,17 @@ service cloud.firestore {
         }
 
         function addAuthorNameText(obj) {
-            if (!obj.authorUid || !participantDataMap.has(obj.authorUid)) return;
+            if (!obj.authorUid) return;
 
-            const authorName = participantDataMap.get(obj.authorUid).name; // Get name from participantDataMap
+            // Try to get author name from object first (imported from JSON), then from participantDataMap
+            let authorName = obj.authorName; // From imported JSON
+            if (!authorName && participantDataMap.has(obj.authorUid)) {
+                authorName = participantDataMap.get(obj.authorUid).name;
+            }
+
+            // If still no author name, don't display
+            if (!authorName) return;
+
             const text = new fabric.Text(authorName, {
                 fontSize: 14,
                 fill: '#0000FF', // Blue text
@@ -3685,6 +4596,10 @@ service cloud.firestore {
                 case 'p': activateTool('pen'); break;
                 case 'r': activateTool('rect'); break;
                 case 'c': activateTool('circle'); break;
+                case 's':
+                    // Toggle shapes menu
+                    document.getElementById('shapes-btn').click();
+                    break;
                 case 'h': activateTool('pan'); break;
                 case 'n': activateTool('note'); break;
                 case 'i': document.getElementById('upload-image-btn').click(); break;
